@@ -24,13 +24,20 @@ class Polygon extends Component {
     return { x: endX, y: endY };
   }
 
+  drawLine(ctx, A, B, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.moveTo(A.x, A.y);
+    ctx.lineTo(B.x, B.y);
+    ctx.stroke();
+    ctx.closePath();
+  }
+
   drawPolygon() {
-    console.log("Drawing polygon");
     // if the endPoints are not defined, then
     // we are running this for the first time
     if (this.endPoints.length === 0) {
-      console.log(this.endPoints);
-      console.log(this.endPoints.length === 0);
+      console.log("Drawing new polygon")
       this.endPoints = this.recordEndPoints();
     }
 
@@ -46,25 +53,23 @@ class Polygon extends Component {
       } else {
         B = endPoints[0]
       }
-      ctx.beginPath();
-      // a bit buggy because we are drawing one of the sides twice
-      ctx.moveTo(center.x, center.y);
-      ctx.lineTo(A.x, A.y)
-      ctx.lineTo(B.x, B.y)
-      ctx.lineTo(center.x, center.y);
 
-      console.log("Slice selected: " + this.sliceSelected);
-      if (this.sliceSelected === i) {
-        ctx.strokeStyle = this.shipColor;
-        ctx.stroke();
-        ctx.closePath();
-        this.drawShip(A, B);
-      } else {
-        ctx.strokeStyle = this.pieColor;
-        ctx.stroke();
-        ctx.closePath();
-      }
+      let lineColor = this.pieColor;
+      this.drawLine(ctx, center, A, lineColor);
+      this.drawLine(ctx, center, B, lineColor);
+      this.drawLine(ctx, A, B, lineColor);
     }
+
+    this.drawShip();
+  }
+
+  highlightShipPath(A, B) {
+    let ctx = this.canvasCtx;
+    let lineColor = this.shipColor;
+    let center = this.startPoint;
+    this.drawLine(ctx, center, A, lineColor);
+    this.drawLine(ctx, center, B, lineColor);
+    this.drawLine(ctx, A, B, lineColor);
   }
 
   // For debugging -- to see where a given point is
@@ -104,11 +109,27 @@ class Polygon extends Component {
     return Math.sqrt( (A.x - B.x)**2 + (A.y - B.y)**2);
   }
 
+  nextSlice(slice) {
+    return (slice + 1) % this.numOfSlices;
+  }
+
+  previousSlice(slice) {
+    if (slice === 0) {
+      return this.numOfSlices - 1;
+    } else {
+      return (slice - 1) % this.numOfSlices;
+    }
+  }
+
   // ship has 3 positions: left, center, right
   // left is when the ship isn't on the right line
   // center is when the ship is on both lines
   // right is when the ship isn't on the left line
-  drawShip(A, B) {
+  drawShip() {
+    let A = this.endPoints[this.sliceSelected];
+    let B = this.endPoints[(this.sliceSelected + 1) % this.numOfSlices];
+    this.highlightShipPath(A, B);
+
     let ctx = this.canvasCtx;
     ctx.strokeStyle = this.shipColor;
     let shipPoints = [];
@@ -147,7 +168,6 @@ class Polygon extends Component {
     for (let i = 0; i < shipPoints.length; i++) {
       ctx.lineTo(shipPoints[i].x, shipPoints[i].y);
     }
-
     ctx.stroke();
     ctx.closePath();
   }
@@ -183,14 +203,10 @@ class Polygon extends Component {
   handleKeyPress(key) {
     switch (key.key) {
       case "ArrowLeft":
-        if (this.sliceSelected === 0) {
-          this.sliceSelected = this.numOfSlices - 1;
-        } else {
-          this.sliceSelected = (this.sliceSelected - 1) % this.numOfSlices;
-        }
+        this.sliceSelected = this.previousSlice(this.sliceSelected);
         break;
       case "ArrowRight":
-        this.sliceSelected = (this.sliceSelected + 1) % this.numOfSlices;
+        this.sliceSelected = this.nextSlice(this.sliceSelected);
         break;
       default:
         break;
