@@ -10,13 +10,16 @@ class Polygon extends Component {
   canvasHeight = 800;
   components = [];
   endPoints = [];
+  currentShipPos = 1;
   sliceSelected = 0; // select the first slice
+  possibleShipPositions = 3; // 3 total ship positions per slice
   startPoint = {
     x: this.canvasWidth/2,
     y: this.canvasHeight/2
   };
 
-  // find all the endpoints of our shape, but don't draw them yet
+  // draw a line from startCoord of the given length,
+  // at the given angle, then return the ending coordinate
   findNextEndpoint(startCoord, length, angle) {
     let r = this.degreeToRad(angle);
     let endX = startCoord.x + length * Math.cos(r);
@@ -130,6 +133,10 @@ class Polygon extends Component {
     let B = this.endPoints[(this.sliceSelected + 1) % this.numOfSlices];
     this.highlightShipPath(A, B);
 
+    // 0 = left
+    // 1 = center
+    // 2 = right
+    let shipAlignment = this.currentShipPos % 3;
     let ctx = this.canvasCtx;
     ctx.strokeStyle = this.shipColor;
     let shipPoints = [];
@@ -137,30 +144,55 @@ class Polygon extends Component {
     let shipLength = this.distanceBetweenPoints(A, B);
     let shipHeight = Math.min(shipLength/3, 30);
 
-    // ship outer hull
-    shipPoints.push(this.findThirdPoint(A, B, shipHeight, -1)); // midOuterHull
-    let lowerOuterHull = this.findThirdPoint(A, B, shipHeight/3, -1);
-    shipPoints.push(B);
+    let midPoint = {
+      x: A.x * 1/2 + B.x * 1/2,
+      y: A.y * 1/2 + B.y * 1/2,
+    }
+    if (shipAlignment === 0) {
+      B = midPoint;
+    } else if (shipAlignment === 2) {
+      A = midPoint;
+    }
 
     // left claw
     let angleAB = this.radToDegree(Math.atan2(A.y - B.y, A.x - B.x));
     let clawAngle = angleAB - 25;
-    shipPoints.push(this.findNextEndpoint(B, shipLength/2.5, clawAngle)); // leftClawInner
-    shipPoints.push({
+    let leftClawOnPolygon = {
       x: A.x * 1/8 + B.x * 7/8,
       y: A.y * 1/8 + B.y * 7/8,
-    }); // leftClawOnPolygon
-
-    shipPoints.push(lowerOuterHull);
+    }
 
     // right claw
     let angleBA = this.radToDegree(Math.atan2(B.y - A.y, B.x - A.x));
     let rightClawAngle = angleBA + 25;
-    shipPoints.push({
+    let rightClawOnPolygon = {
       x: B.x * 1/8 + A.x * 7/8,
       y: B.y * 1/8 + A.y * 7/8,
-    }); // rightClawOnPolygon
-    shipPoints.push(this.findNextEndpoint(A, shipLength/2.5, rightClawAngle)); //rightClawInner
+    }
+
+    // ship outer hull
+    var midOuterHull;
+    var lowerOuterHull;
+    if (shipAlignment === 0 ) {
+      midOuterHull = this.findNextEndpoint(A, shipHeight, angleBA - 70);
+      lowerOuterHull = this.findNextEndpoint(rightClawOnPolygon, shipHeight/3, angleBA - 70);
+    } else if (shipAlignment === 1) {
+      midOuterHull = this.findThirdPoint(A, B, shipHeight, -1);
+      lowerOuterHull = this.findThirdPoint(A, B, shipHeight/3, -1);
+    } else {
+      midOuterHull = this.findNextEndpoint(B, shipHeight, angleAB + 70);
+      lowerOuterHull = this.findNextEndpoint(leftClawOnPolygon, shipHeight/3, angleAB + 70);
+    }
+
+    shipPoints.push(midOuterHull);
+    shipPoints.push(B);
+
+    shipPoints.push(this.findNextEndpoint(B, shipLength/2.5, clawAngle)); // leftClawInsidePolygon
+    shipPoints.push(leftClawOnPolygon);
+    shipPoints.push(lowerOuterHull);
+
+    shipPoints.push(rightClawOnPolygon);
+    shipPoints.push(this.findNextEndpoint(A, shipLength/2.5, rightClawAngle)); // rightClawInsidePolygon
     shipPoints.push(A);
 
     ctx.beginPath();
@@ -200,18 +232,34 @@ class Polygon extends Component {
     return Math.random() * (max - min) + min;
   }
 
+  decrementShipPos(pos) {
+    if (pos === 0) {
+      return (this.numOfSlices * this.possibleShipPositions) - 1;
+    } else {
+      return (pos - 1) % (this.numOfSlices * this.possibleShipPositions);
+    }
+  }
+
+  incrementShipPos(pos) {
+    return (pos + 1) % (this.numOfSlices * this.possibleShipPositions);
+  }
+
   handleKeyPress(key) {
     switch (key.key) {
       case "ArrowLeft":
-        this.sliceSelected = this.previousSlice(this.sliceSelected);
+        this.currentShipPos = this.decrementShipPos(this.currentShipPos)
+        this.sliceSelected = Math.floor(this.currentShipPos/this.possibleShipPositions)
         break;
       case "ArrowRight":
-        this.sliceSelected = this.nextSlice(this.sliceSelected);
+        this.currentShipPos = this.incrementShipPos(this.currentShipPos)
+        this.sliceSelected = Math.floor(this.currentShipPos/this.possibleShipPositions)
         break;
       default:
         break;
     }
 
+    console.log(this.currentShipPos)
+    console.log(this.sliceSelected)
     this.canvasCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
     this.drawPolygon();
   }
