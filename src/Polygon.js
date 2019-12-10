@@ -10,9 +10,9 @@ class Polygon extends Component {
   canvasHeight = 800;
   components = [];
   endPoints = [];
-  currentShipPos = 1;
+  currentShipPos = 2;
   sliceSelected = 0; // select the first slice
-  possibleShipPositions = 3; // 3 total ship positions per slice
+  possibleShipPositions = 5; // 3 total ship positions per slice
   startPoint = {
     x: this.canvasWidth/2,
     y: this.canvasHeight/2
@@ -134,9 +134,11 @@ class Polygon extends Component {
     this.highlightShipPath(A, B);
 
     // 0 = left
-    // 1 = center
-    // 2 = right
-    let shipAlignment = this.currentShipPos % 3;
+    // 1 = center, left-leaning
+    // 2 = center
+    // 3 = center, right-leaning
+    // 4 = right
+    let shipAlignment = this.currentShipPos % this.possibleShipPositions;
     let ctx = this.canvasCtx;
     ctx.strokeStyle = this.shipColor;
     let shipPoints = [];
@@ -151,8 +153,7 @@ class Polygon extends Component {
         y: A.y * 2/3 + B.y * 1/3,
       }
       B = this.findPointAtAngledDistance(fromLeft, shipHeight, originalAngleAB + 90);
-      this.point(B, 'blue');
-    } else if (shipAlignment === 2) {
+    } else if (shipAlignment === 4) {
       let fromRight = {
         x: B.x * 2/3 + A.x * 1/3,
         y: B.y * 2/3 + A.y * 1/3,
@@ -190,7 +191,7 @@ class Polygon extends Component {
         x: A.x * 1/5 + B.x * 4/5,
         y: A.y * 1/5 + B.y * 4/5,
       }
-    } else if (shipAlignment === 1) {
+    } else if (shipAlignment === 1 || shipAlignment === 2 || shipAlignment === 3) {
       leftClawAngle = angleAB - 25;
       rightClawAngle = angleBA + 25;
       leftClawOnPolygon = {
@@ -201,8 +202,18 @@ class Polygon extends Component {
         x: B.x * 1/8 + A.x * 7/8,
         y: B.y * 1/8 + A.y * 7/8,
       }
+      // centered hull
       midOuterHull = this.findThirdPoint(A, B, shipHeight, -1);
       lowerOuterHull = this.findThirdPoint(A, B, shipHeight/3, -1);
+
+      if (shipAlignment === 1) { // left tilted hull
+        midOuterHull = this.findPointAtAngledDistance(A, shipHeight, angleBA - 50);
+        lowerOuterHull = this.findPointAtAngledDistance(rightClawOnPolygon, shipHeight/2, angleBA - 50);
+      } else if (shipAlignment === 3) { // right tilted hull
+        midOuterHull = this.findPointAtAngledDistance(B, shipHeight, angleAB + 50);
+        lowerOuterHull = this.findPointAtAngledDistance(leftClawOnPolygon, shipHeight/2, angleAB + 50);
+      }
+
     } else {
       midOuterHull = this.findPointAtAngledDistance(B, shipHeight, angleAB + 70);
       lowerOuterHull = this.findPointAtAngledDistance(leftClawOnPolygon, shipHeight/3, angleAB + 70);
