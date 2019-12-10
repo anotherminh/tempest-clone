@@ -20,7 +20,7 @@ class Polygon extends Component {
 
   // draw a line from startCoord of the given length,
   // at the given angle, then return the ending coordinate
-  findNextEndpoint(startCoord, length, angle) {
+  findPointAtAngledDistance(startCoord, length, angle) {
     let r = this.degreeToRad(angle);
     let endX = startCoord.x + length * Math.cos(r);
     let endY = startCoord.y + length * Math.sin(r);
@@ -142,57 +142,86 @@ class Polygon extends Component {
     let shipPoints = [];
 
     let shipLength = this.distanceBetweenPoints(A, B);
-    let shipHeight = Math.min(shipLength/3, 30);
+    let shipHeight = Math.min(shipLength/2.8, 30);
 
-    let midPoint = {
-      x: A.x * 1/2 + B.x * 1/2,
-      y: A.y * 1/2 + B.y * 1/2,
-    }
     if (shipAlignment === 0) {
-      B = midPoint;
+      let originalAngleAB = this.radToDegree(Math.atan2(A.y - B.y, A.x - B.x));
+      let fromLeft = {
+        x: A.x * 2/3 + B.x * 1/3,
+        y: A.y * 2/3 + B.y * 1/3,
+      }
+      B = this.findPointAtAngledDistance(fromLeft, shipHeight, originalAngleAB + 90);
+      this.point(B, 'blue');
     } else if (shipAlignment === 2) {
-      A = midPoint;
+      let fromRight = {
+        x: B.x * 2/3 + A.x * 1/3,
+        y: B.y * 2/3 + A.y * 1/3,
+      }
+      let originalAngleBA = this.radToDegree(Math.atan2(B.y - A.y, B.x - A.x));
+      A = this.findPointAtAngledDistance(fromRight, shipHeight, originalAngleBA - 90);
     }
 
-    // left claw
+    // To draw from point B, we need to figure out the angle of AB
     let angleAB = this.radToDegree(Math.atan2(A.y - B.y, A.x - B.x));
-    let clawAngle = angleAB - 25;
-    let leftClawOnPolygon = {
-      x: A.x * 1/8 + B.x * 7/8,
-      y: A.y * 1/8 + B.y * 7/8,
+    var leftClawLength = shipLength/2.5;
+    var leftClawAngle = angleAB - 60;
+    var leftClawOnPolygon = {
+        x: A.x * 1/4 + B.x * 3/4,
+        y: A.y * 1/4 + B.y * 3/4,
     }
 
-    // right claw
+    // To draw from point A, we need to figure out the angle of BA
     let angleBA = this.radToDegree(Math.atan2(B.y - A.y, B.x - A.x));
-    let rightClawAngle = angleBA + 25;
-    let rightClawOnPolygon = {
-      x: B.x * 1/8 + A.x * 7/8,
-      y: B.y * 1/8 + A.y * 7/8,
+    var rightClawLength = shipLength/2.5;
+    var rightClawAngle = angleBA + 70;
+    var rightClawOnPolygon = {
+      x: B.x * 1/4 + A.x * 3/4,
+      y: B.y * 1/4 + A.y * 3/4,
     }
 
     // ship outer hull
     var midOuterHull;
     var lowerOuterHull;
     if (shipAlignment === 0 ) {
-      midOuterHull = this.findNextEndpoint(A, shipHeight, angleBA - 70);
-      lowerOuterHull = this.findNextEndpoint(rightClawOnPolygon, shipHeight/3, angleBA - 70);
+      midOuterHull = this.findPointAtAngledDistance(A, shipHeight, angleBA - 70);
+      lowerOuterHull = this.findPointAtAngledDistance(rightClawOnPolygon, shipHeight/3, angleBA - 70);
+      leftClawLength = shipLength/2
+      leftClawOnPolygon = {
+        x: A.x * 1/5 + B.x * 4/5,
+        y: A.y * 1/5 + B.y * 4/5,
+      }
     } else if (shipAlignment === 1) {
+      leftClawAngle = angleAB - 25;
+      rightClawAngle = angleBA + 25;
+      leftClawOnPolygon = {
+        x: A.x * 1/8 + B.x * 7/8,
+        y: A.y * 1/8 + B.y * 7/8,
+      }
+      rightClawOnPolygon = {
+        x: B.x * 1/8 + A.x * 7/8,
+        y: B.y * 1/8 + A.y * 7/8,
+      }
       midOuterHull = this.findThirdPoint(A, B, shipHeight, -1);
       lowerOuterHull = this.findThirdPoint(A, B, shipHeight/3, -1);
     } else {
-      midOuterHull = this.findNextEndpoint(B, shipHeight, angleAB + 70);
-      lowerOuterHull = this.findNextEndpoint(leftClawOnPolygon, shipHeight/3, angleAB + 70);
+      midOuterHull = this.findPointAtAngledDistance(B, shipHeight, angleAB + 70);
+      lowerOuterHull = this.findPointAtAngledDistance(leftClawOnPolygon, shipHeight/3, angleAB + 70);
+      rightClawLength = shipLength/2
+      rightClawOnPolygon = {
+        x: B.x * 1/5 + A.x * 4/5,
+        y: B.y * 1/5 + A.y * 4/5,
+      }
     }
 
     shipPoints.push(midOuterHull);
     shipPoints.push(B);
 
-    shipPoints.push(this.findNextEndpoint(B, shipLength/2.5, clawAngle)); // leftClawInsidePolygon
+    shipPoints.push(this.findPointAtAngledDistance(B, leftClawLength, leftClawAngle)); // leftClawInsidePolygon
     shipPoints.push(leftClawOnPolygon);
     shipPoints.push(lowerOuterHull);
 
     shipPoints.push(rightClawOnPolygon);
-    shipPoints.push(this.findNextEndpoint(A, shipLength/2.5, rightClawAngle)); // rightClawInsidePolygon
+    shipPoints.push(this.findPointAtAngledDistance(A, rightClawLength, rightClawAngle)); // rightClawInsidePolygon
     shipPoints.push(A);
 
     ctx.beginPath();
@@ -222,7 +251,7 @@ class Polygon extends Component {
       sliceSize = Math.min(pie, sliceSize + sliceSizeInc);
       let length = this.getRandomArbitrary(minLength, maxLength);
       endPoints.push(
-        this.findNextEndpoint(this.startPoint, length, sliceSize)
+        this.findPointAtAngledDistance(this.startPoint, length, sliceSize)
       );
     }
     return endPoints;
